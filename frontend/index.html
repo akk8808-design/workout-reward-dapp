@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workout Reward Token DApp</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 20px; }
+    .container { max-width: 700px; margin: 0 auto; }
+    h1 { text-align: center; font-size: 1.8rem; color: #38bdf8; margin-bottom: 8px; padding-top: 20px; }
+    .subtitle { text-align: center; color: #94a3b8; margin-bottom: 30px; font-size: 0.9rem; }
+    .card { background: #1e293b; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #334155; }
+    .card h2 { font-size: 1rem; color: #94a3b8; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 1px; }
+    .wallet-info { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .wallet-info span { font-size: 0.85rem; color: #94a3b8; }
+    .wallet-info strong { color: #38bdf8; }
+    button { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; transition: background 0.2s; }
+    button:hover { background: #2563eb; }
+    button:disabled { background: #475569; cursor: not-allowed; }
+    .btn-connect { width: 100%; padding: 12px; font-size: 1rem; background: #0ea5e9; }
+    .btn-connect:hover { background: #0284c7; }
+    .btn-verify { background: #8b5cf6; margin-bottom: 10px; width: 100%; }
+    .btn-verify:hover { background: #7c3aed; }
+    .btn-submit { background: #10b981; width: 100%; padding: 12px; font-size: 1rem; }
+    .btn-submit:hover { background: #059669; }
+    label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 6px; margin-top: 14px; }
+    input, select, textarea { width: 100%; background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 10px; border-radius: 8px; font-size: 0.95rem; }
+    input:focus, select:focus { outline: none; border-color: #38bdf8; }
+    .ai-result { padding: 12px; border-radius: 8px; margin-top: 10px; font-size: 0.9rem; display: none; }
+    .ai-result.success { background: #064e3b; border: 1px solid #10b981; color: #6ee7b7; }
+    .ai-result.fail { background: #4c0519; border: 1px solid #f43f5e; color: #fda4af; }
+    .reward-preview { background: #0f172a; border-radius: 8px; padding: 12px; margin-top: 14px; font-size: 0.9rem; color: #94a3b8; }
+    .reward-preview span { color: #fbbf24; font-weight: bold; font-size: 1.1rem; }
+    .record-item { border-bottom: 1px solid #334155; padding: 12px 0; font-size: 0.88rem; }
+    .record-item:last-child { border-bottom: none; }
+    .record-item .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 0.75rem; margin-left: 6px; }
+    .badge-hard { background: #7f1d1d; color: #fca5a5; }
+    .badge-normal { background: #1e3a5f; color: #93c5fd; }
+    .badge-easy { background: #064e3b; color: #6ee7b7; }
+    .badge-photo { background: #4c1d95; color: #c4b5fd; }
+    .wkt { color: #fbbf24; font-weight: bold; }
+    .status { text-align: center; padding: 10px; color: #94a3b8; font-size: 0.85rem; }
+    .loading { color: #38bdf8; }
+    .error { color: #f87171; }
+    .success-msg { color: #34d399; }
+    #photoPreview { max-width: 100%; border-radius: 8px; margin-top: 10px; display: none; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🏋️ Workout Reward Token</h1>
+  <p class="subtitle">운동 기록을 인증하고 WKT 토큰을 받으세요</p>
+
+  <!-- 지갑 연결 -->
+  <div class="card">
+    <h2>지갑 연결</h2>
+    <button class="btn-connect" id="connectBtn" onclick="connectWallet()">MetaMask 연결</button>
+    <div class="wallet-info" id="walletInfo" style="display:none; margin-top:14px;">
+      <div>
+        <span>주소: </span><strong id="walletAddr">-</strong>
+      </div>
+      <div>
+        <span>WKT 잔액: </span><strong id="wktBalance" class="wkt">0 WKT</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- 운동 기록 입력 -->
+  <div class="card">
+    <h2>운동 기록 입력</h2>
+
+    <label>운동 종류</label>
+    <select id="workoutType">
+      <option value="헬스">헬스</option>
+      <option value="러닝">러닝</option>
+      <option value="푸쉬업">푸쉬업</option>
+      <option value="스쿼트">스쿼트</option>
+      <option value="요가">요가</option>
+    </select>
+
+    <label>운동 시간 (분)</label>
+    <input type="number" id="duration" placeholder="예: 60" min="10">
+
+    <label>운동 강도</label>
+    <select id="intensity" onchange="updateRewardPreview()">
+      <option value="easy">Easy</option>
+      <option value="normal">Normal</option>
+      <option value="hard">Hard (+5 WKT)</option>
+    </select>
+
+    <label>운동 사진 업로드 (AI 인증 +3 WKT)</label>
+    <input type="file" id="photoInput" accept="image/*" onchange="previewPhoto()">
+    <img id="photoPreview">
+    <button class="btn-verify" id="verifyBtn" onclick="verifyPhoto()" style="margin-top:10px; display:none;">
+      🤖 AI 사진 인증
+    </button>
+    <div class="ai-result" id="aiResult"></div>
+
+    <div class="reward-preview" id="rewardPreview">
+      예상 보상: <span id="previewAmount">-</span> WKT
+    </div>
+
+    <label>메모</label>
+    <textarea id="memo" rows="2" placeholder="오늘 운동 한마디..."></textarea>
+
+    <button class="btn-submit" onclick="submitWorkout()" style="margin-top:16px;" id="submitBtn" disabled>
+      🏃 운동 인증 & 토큰 받기
+    </button>
+    <div class="status" id="statusMsg"></div>
+  </div>
+
+  <!-- 운동 기록 조회 -->
+  <div class="card">
+    <h2>내 운동 기록</h2>
+    <div id="recordsList"><p style="color:#475569; text-align:center;">지갑을 연결하면 기록이 표시됩니다.</p></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+<script>
+  const CONTRACT_ADDRESS = "0x6f4661691e2A7eBf902440D44fef94eED88970c3";
+  const ANTHROPIC_API_KEY = "";
+
+  const ABI = [
+    "function recordWorkout(string workoutType, uint256 duration, string intensity, bool photoVerified) public",
+    "function getMyRecords() public view returns (tuple(address user, string workoutType, uint256 duration, string intensity, uint256 rewardAmount, uint256 timestamp, bool photoVerified)[])",
+    "function balanceOf(address account) public view returns (uint256)",
+    "function lastClaimTime(address) public view returns (uint256)"
+  ];
+
+  let provider, signer, contract, userAddress;
+  let photoVerified = false;
+
+  async function connectWallet() {
+    if (!window.ethereum) { alert("MetaMask를 설치해주세요!"); return; }
+    try {
+      provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = await provider.getSigner();
+      userAddress = await signer.getAddress();
+      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+      document.getElementById("connectBtn").textContent = "연결됨 ✓";
+      document.getElementById("connectBtn").disabled = true;
+      document.getElementById("walletInfo").style.display = "flex";
+      document.getElementById("walletAddr").textContent = userAddress.slice(0,6) + "..." + userAddress.slice(-4);
+      document.getElementById("submitBtn").disabled = false;
+
+      await loadBalance();
+      await loadRecords();
+      updateRewardPreview();
+    } catch(e) {
+      alert("지갑 연결 실패: " + e.message);
+    }
+  }
+
+  async function loadBalance() {
+    try {
+      const bal = await contract.balanceOf(userAddress);
+      document.getElementById("wktBalance").textContent = ethers.formatEther(bal) + " WKT";
+    } catch(e) {}
+  }
+
+  function previewPhoto() {
+    const file = document.getElementById("photoInput").files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      document.getElementById("photoPreview").src = e.target.result;
+      document.getElementById("photoPreview").style.display = "block";
+      document.getElementById("verifyBtn").style.display = "block";
+    };
+    reader.readAsDataURL(file);
+    photoVerified = false;
+    document.getElementById("aiResult").style.display = "none";
+    updateRewardPreview();
+  }
+
+  async function verifyPhoto() {
+    photoVerified = true;
+    const resultDiv = document.getElementById("aiResult");
+    resultDiv.style.display = "block";
+    resultDiv.className = "ai-result success";
+    resultDiv.textContent = "✅ 운동 사진 인증 완료! +3 WKT 보너스 지급 예정. (시연용 자동 승인)";
+    updateRewardPreview();
+  }
+
+  function updateRewardPreview() {
+    const duration = parseInt(document.getElementById("duration")?.value) || 0;
+    const intensity = document.getElementById("intensity")?.value;
+    let reward = 0;
+    if (duration >= 60) reward = 20;
+    else if (duration >= 30) reward = 10;
+    else if (duration >= 10) reward = 5;
+    if (intensity === "hard") reward += 5;
+    if (photoVerified) reward += 3;
+    document.getElementById("previewAmount").textContent = reward > 0 ? reward : "-";
+  }
+
+  async function submitWorkout() {
+    if (!contract) { alert("먼저 지갑을 연결하세요!"); return; }
+    const workoutType = document.getElementById("workoutType").value;
+    const duration = parseInt(document.getElementById("duration").value);
+    const intensity = document.getElementById("intensity").value;
+
+    if (!duration || duration < 10) { alert("운동 시간을 10분 이상 입력하세요!"); return; }
+
+    const statusMsg = document.getElementById("statusMsg");
+    const submitBtn = document.getElementById("submitBtn");
+    statusMsg.className = "status loading";
+    statusMsg.textContent = "트랜잭션 처리 중... MetaMask에서 승인해주세요.";
+    submitBtn.disabled = true;
+
+    try {
+      const tx = await contract.recordWorkout(workoutType, duration, intensity, photoVerified);
+      statusMsg.textContent = "트랜잭션 전송됨. 블록 확인 중...";
+      await tx.wait();
+      statusMsg.className = "status success-msg";
+      statusMsg.textContent = "✅ 운동 인증 완료! WKT 토큰이 지급됐습니다.";
+      await loadBalance();
+      await loadRecords();
+      photoVerified = false;
+      document.getElementById("aiResult").style.display = "none";
+      document.getElementById("photoPreview").style.display = "none";
+      document.getElementById("verifyBtn").style.display = "none";
+    } catch(e) {
+      statusMsg.className = "status error";
+      if (e.message.includes("Already claimed today")) {
+        statusMsg.textContent = "❌ 오늘은 이미 보상을 받았습니다. 내일 다시 시도하세요.";
+      } else {
+        statusMsg.textContent = "❌ 오류: " + e.message.slice(0, 80);
+      }
+    }
+    submitBtn.disabled = false;
+  }
+
+  async function loadRecords() {
+    try {
+      const records = await contract.getMyRecords();
+      const list = document.getElementById("recordsList");
+      if (records.length === 0) {
+        list.innerHTML = "<p style='color:#475569; text-align:center;'>아직 운동 기록이 없습니다.</p>";
+        return;
+      }
+      list.innerHTML = [...records].reverse().map(r => {
+        const date = new Date(Number(r.timestamp) * 1000).toLocaleString("ko-KR");
+        const wkt = ethers.formatEther(r.rewardAmount);
+        const badge = `<span class="badge badge-${r.intensity}">${r.intensity}</span>`;
+        const photoBadge = r.photoVerified ? `<span class="badge badge-photo">📸 AI인증</span>` : "";
+        return `<div class="record-item">
+          <strong>${r.workoutType}</strong> ${badge} ${photoBadge}
+          &nbsp;|&nbsp; ${Number(r.duration)}분
+          &nbsp;|&nbsp; <span class="wkt">+${wkt} WKT</span>
+          <br><small style="color:#475569;">${date}</small>
+        </div>`;
+      }).join("");
+    } catch(e) {}
+  }
+
+  document.getElementById("duration").addEventListener("input", updateRewardPreview);
+</script>
+</body>
+</html>
